@@ -1,0 +1,73 @@
+```{r setup, include=FALSE}
+root = "<INSERT WORKING DIRECTORY>"
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Load libraries
+```{r}
+library(data.table)
+library(stringr)
+```
+Get necessary files
+```{r}
+mageck = fread(paste0(root,"/CRISPR_screens.txt"))
+mix = fread(paste0(root,"/mixing_results.txt"))
+```
+
+Prepare input
+```{r}
+cell_lines = c("K562", "NCIH2030", "LPS141", "SKMEL2")
+
+test = melt(mageck[, colnames(mageck)[grep(cell_lines[1], colnames(mageck))], with = F], id.vars = cell_lines[1])
+setnames(test, cell_lines[1], "gene")
+test[, c("var", "cell_line") := tstrsplit(variable, "_", fixed=TRUE)]
+test[, variable := NULL]
+
+for (i in 2:4) {
+  cur = melt(mageck[, colnames(mageck)[grep(cell_lines[i], colnames(mageck))], with = F], id.vars = cell_lines[i])
+  setnames(cur, cell_lines[i], "gene")
+  cur[, c("var", "cell_line") := tstrsplit(variable, "_", fixed=TRUE)]
+  cur[, variable := NULL]
+  
+  test = rbind(test, cur)
+}
+
+test = test[complete.cases(test)]
+
+test2 = dcast(test, gene ~ var + cell_line, value.var = "value")
+test2 = data.frame(test2)
+rownames(test2) = test2$gene
+test2$gene=NULL
+test2 = test2[complete.cases(test2),]
+
+fdrcols = colnames(test2)[grep("fdr", colnames(test2))]
+
+howmanysig = apply(test2[, fdrcols], 1, function(x){sum(x < 0.05)})
+sum(howmanysig>2)
+sum(howmanysig>3)
+```
+
+Get the mean rescue fold change
+```{r}
+mix[, rescue := 100/(100 - abs(mean(gCDS2))), by = V1]
+mix[, mean(rescue), by = "V1"]
+
+avg.rescue = mean(mix[, unique(rescue)])
+```
+
+How does each gene's rescue compare to the total avg rescue?
+```{r}
+lfcols = colnames(test2)[grep("lfc", colnames(test2))]
+test3 = 2^test2[, lfcols]
+means = as.data.frame(apply(test3, 1, mean))
+colnames(means) = "avg"
+
+means$rescue_pct = 100*((means$avg - 1) / (avg.rescue - 1))
+```
+
+How many genes were significant in more than two screens?
+```{r}
+means$plot = ifelse(rownames(means) %in% c(names(which(howmanysig>2))), TRUE, FALSE)
+```
+

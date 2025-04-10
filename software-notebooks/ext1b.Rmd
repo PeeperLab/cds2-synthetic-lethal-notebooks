@@ -1,0 +1,37 @@
+
+```{r setup, include=FALSE}
+setwd("<INSERT WORKING DIRECTORY>")
+root = getwd()
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Load libraries
+```{r}
+library(data.table)
+```
+
+With CERES files
+```{r}
+ccle = fread(paste0(root, "/CCLE_expression.csv"))
+ceres = fread(paste0(root, "/CRISPR_gene_effect.csv"))
+
+CDS2 <- ceres[, .SD, .SDcols = c(1, grep("CDS2",colnames(ceres)))]
+CDS1 <- ccle[, .SD, .SDcols = c(1, grep("CDS1",colnames(ccle)))]
+colnames(CDS1) <- c("ID","CDS1")
+colnames(CDS2) <- c("ID","CDS2")
+CDS2_CDS1 <- merge(CDS2, CDS1, by = "ID", all = TRUE)
+CDS2_CDS1 <- CDS2_CDS1[!is.na(CDS1) & !is.na(CDS2)]
+fwrite(CDS2_CDS1,"CDS2_CDS1.csv")
+rm(CDS1,CDS2,CDS2_CDS1)
+
+FAM50A <- ceres[, .SD, .SDcols = c(1, grep("FAM50A",colnames(ceres)))]
+FAM50B <- ccle[, .SD, .SDcols = c(1, grep("FAM50B",colnames(ccle)))]
+colnames(FAM50B) <- c("ID","FAM50B")
+colnames(FAM50A) <- c("ID","FAM50A")
+FAM50A_FAM50B <- merge(FAM50A, FAM50B, by = "ID", all = TRUE)
+FAM50A_FAM50B <- FAM50A_FAM50B[!is.na(FAM50B) & !is.na(FAM50A)]
+fwrite(FAM50A_FAM50B,"FAM50A_FAM50B.csv")
+rm(FAM50B,FAM50A,FAM50A_FAM50B)
+```
+

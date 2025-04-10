@@ -1,0 +1,50 @@
+
+```{r setup, include=FALSE}
+root = "<INSERT WORKING DIRECTORY>"
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Load libraries
+```{r}
+library(data.table)
+```
+
+RNA tpms with correct names
+```{r}
+RNA = fread(paste0(root, "/RNA_aggregated_tpms_correct_genenames.txt")) # we generate this in the code for panel 1c
+HGNC_raw = fread(paste0(root, "/hgnc_complete_set.txt"))
+CERES_raw <- read.csv(paste0(root, '/CRISPR_gene_effect.csv'))
+drugs = read.delim(paste0(root,"/PRISM_repurposing_alpelisib_copanlisib.txt"))
+lineage = fread(paste0(root, "/sample_info.csv"))
+```
+
+Calculate the correlation between ΔCDS2 lethality and ΔCDIPT lethality, ΔPIK3CA lethality, PIK3CA inhibitor lethality (Alpelisib) or pan-PI3K inhibitor lethality (Copanlisib) in solid cancer cell lines from DepMap. Use cell lines with available RNA to allow follow-up analyses with gene expression data.
+```{r}
+rownames(CERES_raw) = CERES_raw$DepMap_ID
+rownames(drugs) = drugs$X
+
+genes = grep("CDS2|CDIPT|PIK3CA", colnames(CERES_raw))
+lethality = CERES_raw[rownames(CERES_raw) %in% RNA$V1, genes]
+lethality = cbind(lethality, drugs[match(rownames(lethality), rownames(drugs)),])
+
+colnames(lethality) = c("CDIPT", "CDS2", "PIK3CA", "depmap_id", "copanlisib", "alpelisib")
+
+# remove blood lineage cell lines as we are using only solid tumors
+blood = lineage[lineage=="blood", DepMap_ID]
+lethality = lethality[!rownames(lethality) %in% blood,]
+```
+
+Do all the correlation tests and make a data.table from the p-values and correlations
+```{r}
+cdipt = cor.test(lethality[, "CDS2"], lethality[, "CDIPT"], method = "pearson", alternative = "two.sided")
+pik3ca = cor.test(lethality[, "CDS2"], lethality[, "PIK3CA"], method = "pearson", alternative = "two.sided")
+copanlisib = cor.test(lethality[!is.na(lethality$copanlisib), "CDS2"], lethality[!is.na(lethality$copanlisib), "copanlisib"], method = "pearson", alternative = "two.sided")
+alpelisib = cor.test(lethality[!is.na(lethality$alpelisib), "CDS2"], lethality[!is.na(lethality$alpelisib), "alpelisib"], method = "pearson", alternative = "two.sided")
+
+plot = data.table(comparison = c("cdipt", "pik3ca", "copanlisib", "alpelisib"),
+                  pval = c(cdipt$p.value, pik3ca$p.value, copanlisib$p.value, alpelisib$p.value),
+                  r = c(cdipt$estimate, pik3ca$estimate, copanlisib$estimate, alpelisib$estimate))
+plot[, padj := p.adjust(pval, method = "bonferroni")]
+```
+

@@ -1,0 +1,69 @@
+
+```{r setup, include=FALSE}
+root = "<INSERT WORKING DIRECTORY>"
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Libraries
+```{r}
+library(data.table)
+library(stringr)
+library(ggplot2)
+```
+
+Read in necessary files
+```{r}
+proteomics = fread(paste0(root, "/CPTAC3_Lung_Squamous_Cell_Carcinoma_Proteome.tmt11.tsv"))
+tn_match = fread(paste0(root, "/S058_BI_CPTAC3_LSCC_Tumor_Normal_Mapping_r1.txt"))
+```
+
+Extract correct colnames and match to tumor-normal pairs
+```{r}
+col_select = data.table(name = colnames(proteomics)[grepl("[CPT0-9 ]+ Log Ratio",colnames(proteomics))])
+col_select[, Specimen_Label := str_extract(name, "CPT[0-9]+")]
+tn_match = merge(tn_match, col_select, by = "Specimen_Label")
+```
+
+Calibration genes and selection thereof + CDS1 from proteomics file
+```{r}
+calibration = c("C1orf43", "CHMP2A", "EMC7", "GPI", "PSMB2", "PSMB4", "RAB7A", "REEP5", "SNRPD3", "VCP", "VPS29")
+calibration_select = proteomics[Gene %in% calibration, .SD, .SDcols = c("Gene", tn_match$name)]
+
+tn_match = merge(tn_match, transpose(proteomics[Gene == "CDS1", .SD, .SDcols = c("Gene", tn_match$name)], keep.names = "name", make.names = "Gene"), by = "name")
+# unlog CDS1
+tn_match[, CDS1_unlog := 2^CDS1]
+```
+
+Normalize calibration genes
+```{r}
+calibration_expression.t = transpose(calibration_select, keep.names = "id", make.names = "Gene")
+# delog everything
+calibration_expression.t[, (calibration) := lapply(.SD, function(x){2^(x)}), .SDcols = calibration]
+# C1orf43 is missing values so remove that column
+calibration_expression.t[, C1orf43 := NULL]
+
+# center values
+calibration_expression.t[, (calibration[-1]) := 
+                           lapply(.SD, function(x){x/mean(x)}), .SDcols = calibration[-1]]
+
+# transpose for easy column-based operations (across samples)
+# then take geometric mean of all centered values 
+calibration_expression = transpose(calibration_expression.t,
+                                   keep.names = "Gene", make.names = "id")
+fcs = data.table(id = calibration_expression.t$id,
+                 fc = calibration_expression[, exp(colMeans(log(.SD))), .SDcols = calibration_expression.t$id])
+setnames(fcs, "id", "name")
+
+# normalize CDS1 to normalized calibrated gene ratios
+tn_match = merge(tn_match, fcs, by = "name")
+tn_match[, CDS1_plot := CDS1_unlog / fc]
+```
+
+Plot
+```{r}
+gg = ggplot(data = tn_match,
+       aes(x = `Tumor or Normal`, y = CDS1_plot)) +  geom_violin() + geom_boxplot(width = 0.1, outlier.shape = NA)
+gg
+```
+
