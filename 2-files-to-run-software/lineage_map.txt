@@ -1,0 +1,86 @@
+site	subcategory	my_label		primary_disease	my_label
+All_Sites	All	all		bile_duct cancer	liver_bile_duct
+Oral_Cavity_Pharynx	Oral_Cavity_Pharynx	head_neck		bladder_cancer	bladder
+Lip	Oral_Cavity_Pharynx	NA		bone_cancer	bone
+Tongue	Oral_Cavity_Pharynx	NA		brain_cancer	brain
+Salivary_gland	Oral_Cavity_Pharynx	NA		breast_cancer	breast
+Floor_of_mouth	Oral_Cavity_Pharynx	NA		cervical_cancer	uterus
+Gum_other_oral_cavity	Oral_Cavity_Pharynx	NA		colon/colorectal_cancer	colorectal
+Nasopharynx	Oral_Cavity_Pharynx	NA		endometrial/uterine_cancer	uterus
+Tonsil	Oral_Cavity_Pharynx	NA		engineered	NA
+Oropharynx	Oral_Cavity_Pharynx	NA		esophageal_cancer	esophagus
+Hypopharynx	Oral_Cavity_Pharynx	NA		eye_cancer	eye
+Other_oral_cavity_pharynx	Oral_Cavity_Pharynx	NA		fibroblast	NA
+Digestive_system	Digestive_system	NA		gallbladder_cancer	gallbladder
+Esophagus	Digestive_system	esophagus		gastric_cancer	stomach
+Stomach	Digestive_system	stomach		head_and neck cancer	head_neck
+Small_intestine	Digestive_system	NA		kidney_cancer	kidney
+Colon_rectum	Digestive_system	colorectal		leukemia	blood
+Colon	Digestive_system	NA		liposarcoma	soft_tissue
+Rectum	Digestive_system	NA		liver_cancer	liver_bile_duct
+Anus_anal_canal_anorectum	Digestive_system	NA		lung_cancer	lung
+Liver_intrahepatic_bile_duct	Digestive_system	liver_bile_duct		lymphoma	blood
+Gallbladder	Digestive_system	gallbladder		myeloma	blood
+Other_biliary	Digestive_system	NA		neuroblastoma	brain
+Pancreas	Digestive_system	pancreas		non-cancerous	NA
+Retroperitoneum	Digestive_system	NA		ovarian_cancer	ovary
+Peritoneum_omentum_mesentery	Digestive_system	NA		pancreatic_cancer	pancreas
+Other_digestive_system	Digestive_system	NA		prostate_cancer	prostate
+Respiratory_system	Respiratory_system	NA		rhabdoid	soft_tissue
+Nose_nasal_cavity_middle_ear	Respiratory_system	NA		sarcoma	soft_tissue
+Larynx	Respiratory_system	NA		skin_cancer	skin
+Lung_bronchus	Respiratory_system	lung		teratoma	NA
+Pleura	Respiratory_system	NA		thyroid_cancer	thyroid
+Trachea_respiratory_organs	Respiratory_system	NA			
+Bones_joints	Bones_joints	bone			
+Soft_tissue	Soft_tissue	soft_tissue			
+Skin	Skin	skin			
+Melanoma	Skin	NA			
+Non_epithelial_skin	Skin	NA			
+Breast	Breast	breast			
+Breast_in_situ	Breast_in_situ	NA			
+Female_genital_system	Female_genital_system	NA			
+Cervix_uteri	Female_genital_system	uterus			
+Corpus_uteri	Female_genital_system	uterus			
+Uterus_NOS	Female_genital_system	uterus			
+Ovary	Female_genital_system	ovary			
+Vagina	Female_genital_system	NA			
+Vulva	Female_genital_system	NA			
+Other_female_genital_system	Female_genital_system	NA			
+Male_genital_system	Male_genital_system	NA			
+Prostate	Male_genital_system	prostate			
+Testis	Male_genital_system	NA			
+Penis	Male_genital_system	NA			
+Other_male_genital_system	Male_genital_system	NA			
+Urinary_system	Urinary_system	NA			
+Urinary_bladder	Urinary_system	bladder			
+Kidney_renal_pelvis	Urinary_system	kidney			
+Ureter	Urinary_system	NA			
+Other_urinary_system	Urinary_system	NA			
+Eye_orbit	Eye_orbit	eye			
+Brain_nervous_system	Brain_nervous_system	NA			
+Brain	Brain_nervous_system	brain			
+Cranial_nerves_other_nervous_system	Brain_nervous_system	NA			
+Endocrine_system	Endocrine_system	NA			
+Thyroid	Endocrine_system	thyroid			
+Other_endocrine_thymus	Endocrine_system	NA			
+Lymphoma	Lymphoma	blood			
+Hodgkin_lymphoma	Lymphoma	NA			
+NonHodgkin_lymphoma	Lymphoma	NA			
+Myeloma	Myeloma	blood			
+Leukemia	Leukemia	blood			
+Lymphocytic	Leukemia	NA			
+ALL	Leukemia	NA			
+CLL	Leukemia	NA			
+Other_lymphocytic	Leukemia	NA			
+Myeloid_monocytic:	Leukemia	NA			
+AML	Leukemia	NA			
+CML	Leukemia	NA			
+Acute_monocytic	Leukemia	NA			
+Other_myeloid_monocytic	Leukemia	NA			
+Other_leukemia	Leukemia	NA			
+Other_acute_leukemia	Leukemia	NA			
+Aleukemic_subleukemic_NOS	Leukemia	NA			
+Kaposi_sarcoma	Kaposi_sarcoma	NA			
+Mesothelioma	Mesothelioma	NA			
+Unspecified	Unspecified	NA			

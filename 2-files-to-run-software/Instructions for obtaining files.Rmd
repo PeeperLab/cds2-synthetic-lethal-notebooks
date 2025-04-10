@@ -1,0 +1,106 @@
+
+Set the location for your downloaded files
+```{r setup, include=FALSE}
+root = "<INSERT WORKING DIRECTORY>"
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Download files from figshare data deposit: https://figshare.com/articles/dataset/DepMap_21Q2_Public/14541774
+Click the links in the downloader lines to download manually
+```{r, eval = F}
+options(timeout = max(300, getOption("timeout"))) # prevent download timeout due to file size
+
+download_method = "wget" # set your preferred method
+
+# download cell line RNA expression (TPMs) from DepMap file storage
+download.file("https://figshare.com/ndownloader/files/27902091", 
+              destfile = paste0(root, "/CCLE_expression.csv"), method = download_method)
+
+# download CERES cell line dependency scores from DepMap file storage
+download.file("https://figshare.com/ndownloader/files/27902226", 
+              destfile = paste0(root, "/CRISPR_gene_effect.csv"), method = download_method)
+
+# download cell line associated mutation data from DepMap file storage
+download.file("https://figshare.com/ndownloader/files/27902127",
+              destfile = paste0(root, "/CCLE_mutations_bool_damaging.csv"), method = download_method)
+
+# download DepMap sample information from DepMap file storage
+download.file("https://figshare.com/ndownloader/files/27902376", 
+              destfile = paste0(root, "/sample_info.csv"), method = download_method)
+```
+
+Download 23Q4 files from figshare data deposit: https://plus.figshare.com/articles/dataset/DepMap_23Q4_Public/24667905
+"OmicsExpressionProteinCodingGenesTPMLogp1.csv"
+"CRISPRGeneEffect.csv"
+
+Download latest HGNC gene mapping data
+```{r}
+download.file("storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt",
+              destfile = paste0(root, "/hgnc_complete_set.txt"), method = download_method)
+
+# We used old link https://ftp.ebi.ac.uk/pub/databases/genenames/hgnc/tsv/hgnc_complete_set.txt which no longer works. We provided our downloaded file here on Figshare for your reference.
+```
+
+Download proteomics data from the DepMap website:
+Navigate to https://depmap.org/portal/download/custom/
+Under “protein” select “proteomics”
+Click “download file”
+Click “accept”
+Save the file in your root directory under the name Proteomics.csv
+
+Download copanlisib and alpelisib data from DepMap website:
+Navigate to https://depmap.org/portal/download/custom/
+Under "compound" select "Drug sensitivity (PRISM Repurposing Primary Screen)"
+Under GENES/COMPOUNDS select "Use custom gene/compound list"
+Type "Copanlisib Alpelisib" in the box
+Click “download file”
+Click “accept”
+Change column names to "copanlisib" and "alpelisib" and save as "PRISM_repurposing_alpelisib_copanlisib.txt" in your root directory
+
+Download methylation data from the DepMap website:
+Navigate to https://depmap.org/portal/download/custom/
+Under “Transcription_start_site” select “Methylation (1kb upstream TSS)”
+Click “download file”
+Click “accept”
+Save the file in your root directory under the name Methylation_(1kb_upstream_TSS).csv
+
+Download processed TCGA TPMs:
+Navigate to https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM1536837
+Download GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_TPM.txt.gz
+Navigate to https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM1697009
+Download GSM1697009_06_01_15_TCGA_24.normal_Rsubread_TPM.txt.gz
+Unzip and save the files in your root directory
+
+Navigate to https://gdc.cancer.gov/about-data/publications/pancanatlas
+Download EBPlusPlusAdjustPANCAN_IlluminaHiSeq_RNASeqV2.geneExp.tsv and TCGA-CDR-SupplementalTableS1.xlsx
+Save the .tsv file in your root directory
+Save the first tab "TCGA-CDR" of the .xlsx file as a .txt file (TCGA-CDR-SupplementalTableS1.txt) in your root directory
+
+Download GTEX data:
+Navigate to https://gtexportal.org/home/datasets
+Download GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_tpm.gct.gz
+Unzip and save the file in your root directory
+Download GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt and save the file in your root directory
+
+Download proteomics data from Satpathy et al. (2021):
+Navigate to https://pdc.cancer.gov/pdc/study/PDC000234
+In the popup, look for the header Common Data Analysis Pipeline (PDC Harmonization) data and select the files next to Protein Assembly (Text)
+Download CPTAC3_Lung_Squamous_Cell_Carcinoma_Proteome.tmt11.tsv, save in your root directory
+Go back to the original popup and select the files next to Other Metadata (Document) under the header Supplementary Data
+Download S058_BI_CPTAC3_LSCC_Tumor_Normal_Mapping_r1.xlsx
+Save the file as a .txt in your root directory
+
+Download provided files:
+lineage_map.txt
+samples_with_CERES_and_RNA.txt
+seer.txt
+essentials.txt
+unprocessed_data.txt
+CRISPR_screens.txt
+mixing_results.txt
+screen_results_mageck.txt
+hgnc_complete_set.txt
+
+For 6b and 6d imaging data is available under unprocessed data by panel.
+RNA_aggregated_tpms_correct_genenames.txt is generated in the software notebook "1d, ext1a, ext1d, ext1e.rmd".
