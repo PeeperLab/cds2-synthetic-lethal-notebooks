@@ -1,0 +1,59 @@
+
+```{r setup, include=FALSE}
+root = "<INSERT WORKING DIRECTORY>"
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Load libraries
+```{r}
+library(data.table)
+```
+
+```{r}
+mageck = fread(paste0(root,"/CRISPR_screens.txt"))
+mix = fread(paste0(root,"/mixing_results.txt"))
+```
+
+Prepare data
+```{r}
+cell_lines = c("K562", "NCIH2030", "LPS141", "SKMEL2")
+
+test = melt(mageck[, colnames(mageck)[grep(cell_lines[1], colnames(mageck))], with = F], id.vars = cell_lines[1])
+setnames(test, cell_lines[1], "gene")
+test[, c("var", "cell_line") := tstrsplit(variable, "_", fixed=TRUE)]
+test[, variable := NULL]
+
+for (i in 2:length(cell_lines)) {
+  cur = melt(mageck[, colnames(mageck)[grep(cell_lines[i], colnames(mageck))], with = F], id.vars = cell_lines[i])
+  setnames(cur, cell_lines[i], "gene")
+  cur[, c("var", "cell_line") := tstrsplit(variable, "_", fixed=TRUE)]
+  cur[, variable := NULL]
+  
+  test = rbind(test, cur)
+}
+
+test = test[complete.cases(test)]
+```
+
+Unlog LFCs
+```{r}
+lfcs = test[var=="lfc"]
+lfcs[, unlog := 2^value]
+```
+
+Compare fold changes (rescue) to results from mixing experiments, combine with FDR for significance
+```{r}
+mix[, rescue := 100/(100 - abs(mean(gCDS2))), by = V1]
+mix[, mean(rescue), by = "V1"]
+
+mix[, cell_line := str_remove_all(mix$V1, "-")]
+
+plot = merge(test[var=="fdr", .(gene, cell_line, value)], lfcs, by = c("gene", "cell_line"))
+
+plot = merge(plot, unique(mix[, .(cell_line, rescue)]), by = "cell_line")
+plot[, rescue_pct := ((unlog - 1) / (rescue - 1)) * 100]
+
+setnames(plot, "value.x", "fdr")
+```
+

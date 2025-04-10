@@ -1,0 +1,124 @@
+
+```{r setup, include=FALSE}
+root = "<INSERT WORKING DIRECTORY>"
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Load libraries
+```{r}
+library(data.table)
+library(stringr)
+library(ggplot2)
+```
+
+Read in necessary files
+```{r}
+ceres = fread(paste0(root, "/CRISPR_gene_effect.csv"))
+gtex = fread(paste0(root, "/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_tpm.gct"))
+depmap_expr = transpose(fread(paste0(root, "/CCLE_expression.csv")), keep.names = "gene_id", make.names = "V1")
+```
+
+Define calibration genes and genes of interest for testing
+```{r}
+calibration = c("C1orf43", "CHMP2A", "EMC7", "GPI", "PSMB2", "PSMB4", "RAB7A", "REEP5", "SNRPD3", "VCP", "VPS29")
+goi = c("B2M", "E2F1", "CDKN2B", "CDS1")
+```
+
+Get cell lines that are CERES < -0.5 for CDS2
+```{r}
+cds2_ceres = ceres[, .(DepMap_ID, `CDS2 (8760)`)]
+setnames(cds2_ceres, "CDS2 (8760)", "CDS2")
+rm(ceres)
+```
+
+Prepare GTEX and DepMap data
+```{r}
+gtex_samples = colnames(gtex)[-c(1:2)]
+depmap_samples = colnames(depmap_expr)[-1]
+
+# keep only samples that also have dependency data
+depmap_expr = depmap_expr[, .SD, .SDcols = c("gene_id", depmap_samples[depmap_samples %in% cds2_ceres$DepMap_ID])]
+
+depmap_samples = colnames(depmap_expr)[-1]
+
+# delog depmap
+depmap_expr[, (depmap_samples) := lapply(.SD, function(x){2^(x)-1}), .SDcols = depmap_samples]
+```
+
+Change gene names of DepMap data
+```{r}
+original_depmap_names = depmap_expr$gene_id
+newnames = str_extract(original_depmap_names, "[A-z0-9-]+")
+
+which(newnames==newnames[which(duplicated(newnames))])
+
+newnames[18962] = "FP565260.1"
+
+depmap_expr$gene_id = newnames
+```
+
+Set colnames and merge
+```{r}
+setnames(gtex, "Description", "gene_id", skip_absent = T)
+
+all = merge(gtex, depmap_expr, by = "gene_id")
+
+samples = colnames(all)[grep("^(GTEX|ACH)",colnames(all))]
+```
+
+Normalize to calibration genes
+```{r}
+calibration_expression = all[gene_id %in% calibration,]
+calibration_expression$Name = NULL
+calibration_expression.t = transpose(calibration_expression, keep.names = "id", make.names = "gene_id")
+
+# normalize calibration genes by taking mean of gene over all samples, then dividing expression for each sample by that mean
+# result: FC of each gene by sample
+
+calibration_expression.t[, (calibration) := 
+                           lapply(.SD, function(x){x/mean(x)}), .SDcols = calibration]
+
+# for every sample: mean FC of each calibration gene by sample
+# result: a correction factor (theoretically similar to library size cf) representing mean fold change for all calibration genes by sample
+fcs = data.table(id = samples,
+                 fc = calibration_expression.t[, rowMeans(.SD), .SDcols = calibration])
+
+rm(calibration_expression, calibration_expression.t)
+
+# for every gene in every sample: divide by mean FC of calibration gene
+# in order to keep things manageable, select genes for publication first
+# there are some duplicated genes (presumably all different transcripts) that make transposition difficult
+
+all.t = transpose(all[gene_id %in% goi, c("gene_id", samples), with = F], keep.names = "id", make.names = "gene_id")
+all.t = merge(fcs, all.t, by = "id")
+
+all.melt = melt(all.t, id.vars = c("id", "fc"))
+all.melt[, corrected_value := value / fc]
+
+# categorize samples that have both expression and dependency data, rest is NA (already selected out)
+all.melt[, category := ifelse(grepl("GTEX", id), "healthy_tissue",
+                           ifelse(id %in% cds2_ceres[CDS2< -0.5, DepMap_ID], "CDS2_lethal",
+                                  ifelse(id %in% cds2_ceres[CDS2 >= -0.5, DepMap_ID], "CDS2_nonlethal", NA)))]
+
+# keep depmap data separate for plotting as all cancer cell lines
+depmap2 = all.melt[!is.na(category)][grepl("^ACH", id)]
+depmap2[, category := "cancer_cell_line"]
+```
+
+Add all the necessary info to the plotting matrix
+```{r}
+plotdata = rbind(all.melt[!is.na(category)], depmap2)
+```
+
+Plot
+```{r}
+plotdata[, category := factor(category, levels = c("healthy_tissue", "cancer_cell_line", "CDS2_nonlethal", "CDS2_lethal"))]
+plotdata[, variable := factor(variable, levels = c("B2M", "E2F1", "CDKN2B", "CDS1"))]
+p = ggplot(data = plotdata, aes(y = log2(corrected_value + 1e-3), x = category)) + geom_violin() + geom_boxplot(width = 0.1, outlier.shape = NA) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + geom_hline(yintercept = 0, lty = "dashed", col = "darkgrey") +
+  scale_y_continuous(breaks = c(-10, 0, 10, 20))
+  
+p + facet_grid(cols = vars(variable))
+```
+

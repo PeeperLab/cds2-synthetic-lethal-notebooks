@@ -1,0 +1,75 @@
+```{r setup, include=FALSE}
+root = "<INSERT WORKING DIRECTORY>"
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Load libraries
+```{r}
+library(data.table)
+library(ggplot2)
+```
+
+```{r}
+mageck = fread(paste0(root,"/screen_results_mageck.txt"))
+```
+
+Prepare data
+```{r}
+cell_lines = c("K562", "NCIH2030", "LPS141", "SKMEL2", "MCF7")
+
+test = melt(mageck[, colnames(mageck)[grep(cell_lines[1], colnames(mageck))], with = F], id.vars = cell_lines[1])
+setnames(test, cell_lines[1], "gene")
+test[, c("var", "cell_line") := tstrsplit(variable, "_", fixed=TRUE)]
+test[, variable := NULL]
+
+for (i in 2:length(cell_lines)) {
+  cur = melt(mageck[, colnames(mageck)[grep(cell_lines[i], colnames(mageck))], with = F], id.vars = cell_lines[i])
+  setnames(cur, cell_lines[i], "gene")
+  cur[, c("var", "cell_line") := tstrsplit(variable, "_", fixed=TRUE)]
+  cur[, variable := NULL]
+  
+  test = rbind(test, cur)
+}
+
+test = test[complete.cases(test)]
+```
+
+Take geometric mean FC of all screens done in CDS1-negative cell lines compared to FC in screen done in CDS1-high cell line.
+```{r}
+# cast back to gene + colums lfc and fdr by cell line
+test2 = dcast(test, gene ~ var + cell_line, value.var = "value")
+test2 = test2[complete.cases(test2)]
+
+# get lfc cols
+lfcols = colnames(test2)[grep("lfc", colnames(test2))]
+lfcs = test2[, .SD, .SDcols = c("gene", lfcols)]
+
+# unlog
+lfcs[, (lfcols) := lapply(.SD, function(x){ 2^x }), .SDcols = lfcols]
+
+# split in mcf7 and rest
+cds1_high = lfcs[, .(gene, lfc_MCF7)]
+
+cds1_low = lfcs[, .(gene, lfc_K562, lfc_LPS141, lfc_NCIH2030, lfc_SKMEL2)]
+
+# mean values cds1 low
+cds1_low = as.data.frame(cds1_low)
+rownames(cds1_low) = cds1_low$gene
+cds1_low$gene = NULL
+
+# geometric mean
+cds1_low$geomean = apply(cds1_low, 1, function(x) {exp(mean(log(x))) } )
+
+cds1_low = as.data.table(cds1_low, keep.rownames = "gene")
+
+# make plotting file
+plot = merge(cds1_low[, .(gene, geomean)], cds1_high)
+```
+
+```{r}
+ggplot(data = plot,
+       aes(y = log2(geomean),
+          x = log2(lfc_MCF7)) ) + geom_point(alpha = 0.1) + xlim(c(-4,6)) + ylim(c(-4,6))
+```
+

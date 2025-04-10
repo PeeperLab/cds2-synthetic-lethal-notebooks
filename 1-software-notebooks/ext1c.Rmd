@@ -1,0 +1,134 @@
+
+```{r setup, include=FALSE}
+setwd("<INSERT WORKING DIRECTORY>")
+root = getwd()
+knitr::opts_chunk$set(root = root)
+knitr::opts_knit$set(root = root)
+```
+
+Load libraries
+```{r}
+library(data.table)
+library(stringr)
+library(plyr)
+library(tidyr)
+library(dplyr)
+```
+
+Load necessary files
+```{r}
+RNA_raw= read.csv(paste0(root, "/OmicsExpressionProteinCodingGenesTPMLogp1.csv"))
+CHRONOS_raw = read.csv(paste0(root, "/CRISPRGeneEffect.csv"))
+HGNC_raw = fread(paste0(root, "/hgnc_complete_set.txt"))
+```
+
+Format data
+```{r}
+RNA<-RNA_raw
+CHRONOS<-CHRONOS_raw
+rownames(RNA)<-RNA[,1]
+rownames(CHRONOS)<-CHRONOS[,1]
+RNA<-RNA[,-1]
+CHRONOS<-CHRONOS[,-1]
+non_na_counts <- colSums(!is.na(CHRONOS))
+CHRONOS <- CHRONOS[, non_na_counts >= 500]
+HGNC<-HGNC_raw[, .(entrez_id, symbol)]
+PREVIOUS_HGNC <- HGNC_raw[,.(prev_symbol,symbol)]
+rm(CHRONOS_raw,RNA_raw,HGNC_raw,non_na_counts)
+```
+
+Get complete cell line data (CHRONOS & RNA available)
+```{r}
+COMPLETE<-rownames(RNA)[rownames(RNA) %in% rownames(CHRONOS)]
+RNA<-RNA[rownames(RNA) %in% COMPLETE,]
+CHRONOS<-CHRONOS[rownames(CHRONOS) %in% COMPLETE,]
+rm(COMPLETE)
+```
+
+
+Get entrez IDs
+```{r}
+new_colnames <- sub(".*\\.\\.", "", colnames(RNA)) # Remove ".." from column names
+colnames(RNA) <- new_colnames
+new_colnames <- sub(".*\\.\\.", "", colnames(CHRONOS)) # Remove ".." from column names
+colnames(CHRONOS) <- new_colnames
+colnames(RNA) <- str_remove(colnames(RNA), ".*\\.\\.")
+colnames(CHRONOS) <- str_remove(colnames(CHRONOS), ".*\\.\\.")
+colnames(RNA) <- sub("\\.$", "", colnames(RNA))
+colnames(CHRONOS) <- sub("\\.$", "", colnames(CHRONOS))
+rm(new_colnames)
+```
+
+Get the HGNC symbols for each entrez ID
+```{r}
+temp1 <- match(colnames(RNA), HGNC$entrez_id)
+colnames(RNA)[!is.na(temp1)] <- as.character(HGNC$symbol[na.omit(temp1)])
+temp2 <- match(colnames(CHRONOS), HGNC$entrez_id)
+colnames(CHRONOS)[!is.na(temp2)] <- as.character(HGNC$symbol[na.omit(temp2)])
+rm(temp1, temp2)
+```
+
+Combine transcripts for the same gene and remove transcripts that do not map to a gene (HGNC)
+```{r}
+RNA.T.names <- transpose(RNA, keep.names="colnames")
+RNA.T <- RNA.T.names[,-1]
+RNA.T.TPM <- (2**RNA.T)-1
+RNA.T.TPM.aggregated <- aggregate(RNA.T.TPM, by = list(RNA.T.names$colnames), FUN = sum)
+RNA.T.TPM.aggregated.genes <- RNA.T.TPM.aggregated[(RNA.T.TPM.aggregated$Group.1 %in% HGNC$symbol),]
+RNA.T.aggregated.genes <- log2((RNA.T.TPM.aggregated.genes[,-1]+1))
+RNA.aggregated.genes <- transpose(RNA.T.aggregated.genes)
+colnames(RNA.aggregated.genes) <- RNA.T.TPM.aggregated$Group.1[RNA.T.TPM.aggregated$Group.1 %in% HGNC$symbol]
+rownames(RNA.aggregated.genes) <- rownames(RNA)
+RNA.aggregated.genes.orderedcol <- RNA.aggregated.genes[,order(colnames(RNA.aggregated.genes),decreasing=FALSE)]
+RNA.aggregated.genes.orderedcolrow <- RNA.aggregated.genes.orderedcol[(order(rownames(RNA.aggregated.genes.orderedcol),decreasing=FALSE)),]
+RNA<-RNA.aggregated.genes.orderedcolrow
+rm(HGNC,RNA.T.TPM.aggregated,RNA.T.names,RNA.T,RNA.T.TPM,RNA.T.TPM.aggregated.genes,RNA.T.aggregated.genes, RNA.aggregated.genes,RNA.aggregated.genes.orderedcol,RNA.aggregated.genes.orderedcolrow)
+
+write.table(RNA, paste0(root, "/RNA_aggregated_tpms_correct_genenames.txt"))
+```
+
+Calculate Pearson correlations and save intermediate results
+```{r}
+PEARSONS_pancancer <- cor(CHRONOS, RNA, method = c("pearson"), use = "pairwise.complete.obs")
+write.table(PEARSONS_pancancer, file = paste0(root, "/PEARSONS_pancancer.txt"), sep = "\t")
+rm(PEARSONS_pancancer)
+```
+
+Order results and remove duplicate anchor and target genes pancancer
+```{r}
+unmelted <- fread(paste0(root, "/PEARSONS_pancancer.txt"))
+melted <- melt(unmelted, id.vars = "V1")
+rm(unmelted)
+melted.ordered <- melted[order(melted$value, decreasing=TRUE, )]
+melted.ordered.V1 <- melted.ordered[!duplicated(melted.ordered$V1),]
+results_pancancer <- melted.ordered.V1[!duplicated(melted.ordered.V1$variable),]
+```
+
+Write out results of the synthetic lethality prediction
+```{r}
+write.csv(results_pancancer, file = paste0(root, "/result_pancancer.csv"))
+rm(results_pancancer)
+```
+
+calculate new significance cutt-off
+```{r}
+bonferroni_critical_correlation <- function(n_samples, n_tests) {
+  # Bonferroni-corrected significance level
+  alpha_corrected <- 0.05 / n_tests
+  
+  # Calculate the critical t-value for the corrected significance level
+  critical_t <- qt(1 - alpha_corrected / 2, df = n_samples - 2)
+  
+  # Convert the critical t-value to a Pearson correlation coefficient
+  critical_r <- critical_t / sqrt(critical_t^2 + (n_samples - 2))
+  
+  return(critical_r)
+}
+
+# Example usage:
+n_samples <- 1021    # Number of samples
+n_tests <- 17787*19153  # Number of tests to Bonferroni correct for
+
+critical_r <- bonferroni_critical_correlation(n_samples, n_tests)
+print(critical_r)
+```
